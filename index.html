@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A* Algorithm</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+      }
+      h1 {
+        color: #333;
+      }
+      .container {
+        width: 80%;
+        margin: 30px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      input,
+      select,
+      button {
+        padding: 10px;
+        margin: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+      }
+      input[type="text"] {
+        width: 40%;
+      }
+      .results {
+        margin-top: 20px;
+        padding: 20px;
+        background-color: #eef2f7;
+        border-radius: 8px;
+        display: none;
+      }
+      .result-item {
+        padding: 10px;
+        background-color: #f0f0f0;
+        border-radius: 5px;
+        margin: 5px 0;
+      }
+      .result-item span {
+        font-weight: bold;
+      }
+      .error {
+        color: red;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>A* Algorithm for Shortest Path</h1>
+
+    <div class="container">
+      <h3>Enter Inputs:</h3>
+      <label for="start-node">Start Node:</label>
+      <input type="text" id="start-node" placeholder="Example: S" required />
+      <br />
+
+      <label for="goal-node">Goal Node:</label>
+      <input type="text" id="goal-node" placeholder="Example: G" required />
+
+      <h3>Enter Edges and Heuristics:</h3>
+      <textarea
+        id="graph-input"
+        rows="5"
+        cols="40"
+        placeholder="Enter edges like: S-A-2, S-B-1, A-C-2..."
+        required
+      ></textarea>
+
+      <textarea
+        id="heuristics-input"
+        rows="5"
+        cols="40"
+        placeholder="Enter heuristics like: S-6, A-0, B-6..."
+        required
+      ></textarea>
+      <br />
+
+      <button onclick="calculateAStar()">Calculate</button>
+
+      <div class="results" id="results">
+        <h3>Results:</h3>
+        <div class="result-item">
+          <span> Closed Set: {<span id="closed-set"> </span>} </span>
+        </div>
+        <div class="result-item">
+          <span>Path: </span><span id="path"></span>
+        </div>
+        <div class="result-item">
+          <span>Total Cost: </span><span id="total-cost"></span>
+        </div>
+        <div class="result-item">
+          <span>Number of Expanded Nodes: </span
+          ><span id="expanded-nodes"></span>
+          <span> inclucde goal</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="error" id="error-message"></div>
+
+    <script>
+      function parseGraphInput(input) {
+        let graph = {};
+        let edges = input.split(",");
+        edges.forEach((edge) => {
+          let [from, to, cost] = edge.trim().split("-");
+          cost = parseInt(cost);
+          if (!graph[from]) graph[from] = [];
+          graph[from].push([to, cost]);
+        });
+        return graph;
+      }
+
+      function parseHeuristicsInput(input) {
+        let heuristics = {};
+        let heuristicsArr = input.split(",");
+        heuristicsArr.forEach((item) => {
+          let [node, hValue] = item.trim().split("-");
+          heuristics[node] = parseInt(hValue);
+        });
+        return heuristics;
+      }
+
+      function calculateAStar() {
+        const startNode = document.getElementById("start-node").value.trim();
+        const goalNode = document.getElementById("goal-node").value.trim();
+        const graphInput = document.getElementById("graph-input").value.trim();
+        const heuristicsInput = document
+          .getElementById("heuristics-input")
+          .value.trim();
+
+        if (!startNode || !goalNode || !graphInput || !heuristicsInput) {
+          document.getElementById("error-message").innerText =
+            "Please fill all fields!";
+          return;
+        }
+
+        const graph = parseGraphInput(graphInput);
+        const heuristics = parseHeuristicsInput(heuristicsInput);
+
+        const result = aStarSearch(graph, startNode, goalNode, heuristics);
+
+        if (result.path === null) {
+          document.getElementById("error-message").innerText = "No path found.";
+        } else {
+          document.getElementById("error-message").innerText = "";
+          document.getElementById("path").innerText = result.path.join(" -> ");
+          document.getElementById("total-cost").innerText = result.totalCost;
+          document.getElementById("expanded-nodes").innerText =
+            result.expandedNodesCount;
+          document.getElementById("closed-set").innerText =
+            result.closedSet.join(", ");
+          document.getElementById("results").style.display = "block";
+        }
+      }
+
+      function aStarSearch(graph, start, goal, heuristics) {
+        let pq = [[heuristics[start], [[start, 0]]]];
+        let closedSet = [];
+        let expandedNodesCount = 0;
+
+        while (pq.length > 0) {
+          pq.sort((a, b) => a[0] - b[0]);
+          let [fCost, path] = pq.shift();
+          let currentNode = path[path.length - 1][0];
+
+          if (currentNode === goal) {
+            closedSet.push(currentNode);
+            let totalCost = path.reduce((sum, step) => sum + step[1], 0);
+            return {
+              path: path.map((step) => step[0]),
+              totalCost: totalCost,
+              expandedNodesCount: expandedNodesCount + 1,
+              closedSet: closedSet,
+            };
+          }
+
+          if (closedSet.includes(currentNode)) continue;
+
+          closedSet.push(currentNode);
+          expandedNodesCount++;
+
+          if (graph[currentNode]) {
+            graph[currentNode].sort((a, b) => a[0].localeCompare(b[0]));
+            for (let [neighbor, cost] of graph[currentNode]) {
+              if (!closedSet.includes(neighbor)) {
+                let newPath = [...path, [neighbor, cost]];
+                let newFCost =
+                  newPath.reduce((sum, step) => sum + step[1], 0) +
+                  heuristics[neighbor];
+                pq.push([newFCost, newPath]);
+              }
+            }
+          }
+        }
+
+        return {
+          path: null,
+          totalCost: Infinity,
+          expandedNodesCount: expandedNodesCount,
+          closedSet: closedSet,
+        };
+      }
+    </script>
+  </body>
+</html>
